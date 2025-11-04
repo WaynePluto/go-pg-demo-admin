@@ -1,31 +1,56 @@
-import { permissionClient } from "@/api/permission";
-import type {
-  CreatePermissionRequest,
-  UpdatePermissionRequest,
-  PermissionDetailResponse,
-} from "@/hono-api-type/modules/permission/model";
+import {
+  deletePermissionById,
+  getPermissionById,
+  getPermissionList,
+  postPermission,
+  putPermissionById,
+  type GetPermissionListQuery,
+  type PostPermissionBody,
+  type PutPermissionByIdBody,
+} from "@/apis/permissionApi";
+import type { GetPermissionListRes } from "@/apis/permissionApi";
 import { message } from "antd";
 
+// 定义权限项类型，基于新接口返回的数据结构
+export type PermissionListItem = NonNullable<NonNullable<GetPermissionListRes["data"]>["list"]>[number];
+
+interface FetchPermissionsParams {
+  page: number;
+  pageSize: number;
+  name?: string;
+  type?: string;
+  orderBy?: "created_at" | "updated_at";
+  order?: "asc" | "desc";
+}
+
 export const usePermission = () => {
-  const fetchPermissions = async (params: {
-    page: number;
-    pageSize: number;
-    name?: string;
-    code?: string;
-    type?: "custom" | "system";
-    orderBy?: "created_at" | "updated_at";
-    order?: "asc" | "desc";
-  }) => {
+  const fetchPermissions = async (params: FetchPermissionsParams) => {
     try {
-      const res = await permissionClient.page.$post({
-        json: params,
+      // 将参数转换为新的API所需的格式
+      const queryParams: GetPermissionListQuery = {
+        page: params.page.toString(),
+        pageSize: params.pageSize.toString(),
+        name: params.name,
+        type: params.type,
+      };
+
+      // 清除空值参数
+      Object.keys(queryParams).forEach(key => {
+        if (queryParams[key] === undefined || queryParams[key] === null) {
+          delete queryParams[key];
+        }
       });
 
-      const json = await res.json();
-      if (json.code === 200) {
-        return json.data;
+      const res = await getPermissionList(queryParams);
+
+      if (res && res.data && res.data.code === 200) {
+        // 直接使用API返回的数据结构
+        return {
+          total: res.data.data?.total || 0,
+          list: res.data.data?.list || [],
+        };
       } else {
-        message.error(json.msg || "获取权限列表失败");
+        message.error(res?.data?.msg || "获取权限列表失败");
         return { total: 0, list: [] };
       }
     } catch (error) {
@@ -36,15 +61,12 @@ export const usePermission = () => {
 
   const fetchPermissionDetail = async (id: string) => {
     try {
-      const res = await permissionClient[":id"].$get({
-        param: { id },
-      });
+      const res = await getPermissionById({ id });
 
-      const json = await res.json();
-      if (json.code === 200) {
-        return json.data;
+      if (res && res.data && res.data.code === 200) {
+        return res.data.data || null;
       } else {
-        message.error(json.msg || "获取权限详情失败");
+        message.error(res?.data?.msg || "获取权限详情失败");
         return null;
       }
     } catch (error) {
@@ -53,18 +75,26 @@ export const usePermission = () => {
     }
   };
 
-  const createPermission = async (data: CreatePermissionRequest) => {
+  const createPermission = async (data: any) => {
     try {
-      const res = await permissionClient.index.$post({
-        json: data,
-      });
+      // 将传入数据转换为新API所需格式
+      const requestData: PostPermissionBody = {
+        name: data.name,
+        type: data.type,
+        metadata: {
+          code: data.code,
+          path: data.path,
+          method: data.method,
+        },
+      };
 
-      const result = await res.json();
-      if (result.code === 200) {
-        message.success(result.msg || "创建权限成功");
+      const res = await postPermission(requestData);
+
+      if (res && res.data && res.data.code === 200) {
+        message.success(res.data.msg || "创建权限成功");
         return true;
       } else {
-        message.error(result.msg || "创建权限失败");
+        message.error(res?.data?.msg || "创建权限失败");
         return false;
       }
     } catch (error) {
@@ -73,19 +103,27 @@ export const usePermission = () => {
     }
   };
 
-  const updatePermission = async (id: string, data: UpdatePermissionRequest) => {
+  const updatePermission = async (id: string, data: any) => {
     try {
-      const res = await permissionClient[":id"].$put({
-        param: { id },
-        json: data,
-      });
+      // 将传入数据转换为新API所需格式
+      const requestData: PutPermissionByIdBody = {};
+      
+      // 处理基本字段
+      if (data.name !== undefined) requestData.name = data.name;
+      if (data.type !== undefined) requestData.type = data.type;
+      
+      // 处理metadata字段
+      if (data.metadata !== undefined) {
+        requestData.metadata = data.metadata;
+      }
 
-      const result = await res.json();
-      if (result.code === 200) {
-        message.success(result.msg || "更新权限成功");
+      const res = await putPermissionById({ id }, requestData);
+
+      if (res && res.data && res.data.code === 200) {
+        message.success(res.data.msg || "更新权限成功");
         return true;
       } else {
-        message.error(result.msg || "更新权限失败");
+        message.error(res?.data?.msg || "更新权限失败");
         return false;
       }
     } catch (error) {
@@ -96,16 +134,13 @@ export const usePermission = () => {
 
   const deletePermission = async (id: string) => {
     try {
-      const res = await permissionClient[":id"].$delete({
-        param: { id },
-      });
+      const res = await deletePermissionById({ id });
 
-      const json = await res.json();
-      if (json.code === 200) {
-        message.success(json.msg || "删除权限成功");
+      if (res && res.data && res.data.code === 200) {
+        message.success(res.data.msg || "删除权限成功");
         return true;
       } else {
-        message.error(json.msg || "删除权限失败");
+        message.error(res?.data?.msg || "删除权限失败");
         return false;
       }
     } catch (error) {

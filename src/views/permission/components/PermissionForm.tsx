@@ -1,15 +1,14 @@
-import type {
-  PermissionDetailResponse,
-  CreatePermissionRequest,
-  UpdatePermissionRequest,
-} from "@/hono-api-type/modules/permission/model";
+import type { GetPermissionListRes } from "@/apis/permissionApi";
 import type { ModalFormProps } from "@ant-design/pro-components";
-import { ProForm, ProFormText, ProFormTextArea, ProFormRadio } from "@ant-design/pro-components";
+import { ProForm, ProFormText, ProFormTextArea, ProFormRadio, ProFormSelect } from "@ant-design/pro-components";
 import { isValidElement } from "react";
 
+// 定义权限项类型，基于新接口返回的数据结构
+type PermissionListItem = NonNullable<NonNullable<GetPermissionListRes["data"]>["list"]>[number];
+
 interface PermissionFormProps extends Omit<ModalFormProps, "onFinish"> {
-  editingPermission?: PermissionDetailResponse;
-  onFinish: (values: CreatePermissionRequest | UpdatePermissionRequest) => Promise<boolean>;
+  editingPermission?: PermissionListItem;
+  onFinish: (values: any) => Promise<boolean>;
   onCancel?: () => void;
 }
 
@@ -30,7 +29,10 @@ export function PermissionForm({ editingPermission, onFinish, title, onCancel, .
       layout="vertical"
       onFinish={onFinish}
       initialValues={{
-        ...editingPermission,
+        name: editingPermission?.name,
+        code: editingPermission?.metadata?.code,
+        path: editingPermission?.metadata?.path,
+        method: editingPermission?.metadata?.method,
         type: defaultType,
       }}
       submitter={{
@@ -67,13 +69,28 @@ export function PermissionForm({ editingPermission, onFinish, title, onCancel, .
         }}
       />
       <ProFormText
-        name="resource"
-        label="权限所属"
-        placeholder="请输入权限所属"
-        rules={[{ required: true, message: "请输入权限所属" }]}
+        name="path"
+        label="权限路径"
+        placeholder="请输入权限路径"
+        rules={[{ required: true, message: "请输入权限路径" }]}
         fieldProps={{
-          id: "permission-form-resource",
+          id: "permission-form-path",
           maxLength: 100,
+        }}
+      />
+      <ProFormSelect
+        name="method"
+        label="请求方法"
+        placeholder="请选择请求方法"
+        options={[
+          { label: "GET", value: "GET" },
+          { label: "POST", value: "POST" },
+          { label: "PUT", value: "PUT" },
+          { label: "DELETE", value: "DELETE" },
+          { label: "PATCH", value: "PATCH" },
+        ]}
+        fieldProps={{
+          id: "permission-form-method",
         }}
       />
       <ProFormRadio.Group
@@ -85,7 +102,6 @@ export function PermissionForm({ editingPermission, onFinish, title, onCancel, .
           {
             label: "系统内置权限",
             value: "system",
-            disabled: true,
           },
           {
             label: "自定义权限",

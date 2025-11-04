@@ -1,4 +1,3 @@
-import type { PermissionDetailResponse } from "@/hono-api-type/modules/permission/model";
 import { DeleteOutlined, EditOutlined, PlusOutlined } from "@ant-design/icons";
 import type { ActionType, ProColumns } from "@ant-design/pro-components";
 import { ProTable } from "@ant-design/pro-components";
@@ -7,15 +6,19 @@ import { omit } from "lodash-es";
 import { useRef, useState } from "react";
 import { usePermission } from "../hooks/usePermission";
 import { PermissionForm } from "./PermissionForm";
+import type { GetPermissionListRes } from "@/apis/permissionApi";
+
+// 定义表格数据类型，基于新接口返回的数据结构
+type PermissionListItem = NonNullable<NonNullable<GetPermissionListRes["data"]>["list"]>[number];
 
 export function PermissionTable() {
   const [formVisible, setFormVisible] = useState(false);
-  const [editingPermission, setEditingPermission] = useState<PermissionDetailResponse | undefined>();
+  const [editingPermission, setEditingPermission] = useState<PermissionListItem | undefined>();
   const { fetchPermissions, fetchPermissionDetail, createPermission, updatePermission, deletePermission } =
     usePermission();
   const actionRef = useRef<ActionType>(null);
 
-  const columns: ProColumns<PermissionDetailResponse>[] = [
+  const columns: ProColumns<PermissionListItem>[] = [
     {
       title: "权限名称",
       dataIndex: "name",
@@ -24,14 +27,15 @@ export function PermissionTable() {
     },
     {
       title: "权限编码",
-      dataIndex: "code",
+      dataIndex: ["metadata", "code"],
       key: "code",
       ellipsis: true,
+      search: false,
     },
     {
-      title: "权限所属",
-      dataIndex: "resource",
-      key: "resource",
+      title: "权限路径",
+      dataIndex: ["metadata", "path"],
+      key: "path",
       ellipsis: true,
       search: false,
     },
@@ -45,9 +49,9 @@ export function PermissionTable() {
       },
     },
     {
-      title: "描述",
-      dataIndex: "description",
-      key: "description",
+      title: "请求方法",
+      dataIndex: ["metadata", "method"],
+      key: "method",
       ellipsis: true,
       search: false,
     },
@@ -87,7 +91,7 @@ export function PermissionTable() {
         <Popconfirm
           key="delete"
           title="确定删除这个权限吗？"
-          onConfirm={() => handleDelete(record.id)}
+          onConfirm={() => handleDelete(record.id!)}
           okText="确定"
           cancelText="取消"
         >
@@ -111,9 +115,9 @@ export function PermissionTable() {
     setFormVisible(true);
   };
 
-  const handleEdit = async (permission: PermissionDetailResponse) => {
+  const handleEdit = async (permission: PermissionListItem) => {
     // 调用详情接口获取最新数据
-    const detail = await fetchPermissionDetail(permission.id);
+    const detail = await fetchPermissionDetail(permission.id!);
     if (detail) {
       setEditingPermission(detail);
       setFormVisible(true);
@@ -135,8 +139,19 @@ export function PermissionTable() {
       const changedValues: Record<string, any> = {};
       let hasChanges = false;
 
-      Object.keys(values).forEach(key => {
-        if (JSON.stringify(values[key]) !== JSON.stringify((editingPermission as any)[key])) {
+      // 特殊处理metadata字段
+      if (values.code !== undefined || values.path !== undefined || values.method !== undefined) {
+        changedValues.metadata = {
+          ...(values.code !== undefined && { code: values.code }),
+          ...(values.path !== undefined && { path: values.path }),
+          ...(values.method !== undefined && { method: values.method }),
+        };
+        hasChanges = true;
+      }
+
+      // 处理其他字段
+      ['name', 'type'].forEach(key => {
+        if (values[key] !== undefined && JSON.stringify(values[key]) !== JSON.stringify((editingPermission as any)[key])) {
           changedValues[key] = values[key];
           hasChanges = true;
         }
@@ -147,7 +162,7 @@ export function PermissionTable() {
         return true;
       }
 
-      success = await updatePermission(editingPermission.id, changedValues);
+      success = await updatePermission(editingPermission.id!, changedValues);
     } else {
       success = await createPermission(values);
     }
@@ -162,7 +177,7 @@ export function PermissionTable() {
 
   return (
     <div className="permission-page">
-      <ProTable<PermissionDetailResponse>
+      <ProTable<PermissionListItem>
         headerTitle="权限管理"
         rowKey="id"
         actionRef={actionRef}
@@ -197,7 +212,7 @@ export function PermissionTable() {
 
           // 返回格式化后的数据
           return {
-            data: permissionList.list as PermissionDetailResponse[],
+            data: permissionList.list,
             success: true,
             total: permissionList.total,
           };

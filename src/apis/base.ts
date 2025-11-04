@@ -39,62 +39,52 @@ instance.interceptors.request.use(
   },
 );
 
-instance.interceptors.response.use(
-  response => response,
-  error => {
-    return new Promise(async (resolve, reject) => {
-      if (error.response) {
-        // 获取错误码
-        const status = error.response.status;
-        if (status === 401) {
-          try {
-            if (Request.isRefreshing) {
-              Request.responsPendingList.push(async () => {
-                const res = await instance(error.response.config);
-                resolve(res);
-              });
-            } else {
-              Request.isRefreshing = true;
-              // 刷新token
-              const res = await axios<PostAuthRefreshTokenRes>({
-                url: `/auth/refresh-token`,
-                method: "post",
-                data: { refresh_token: getRefreshToken() },
-              });
-              if (res.status === 200 && res.data.data?.access_token) {
-                setToken(res.data.data?.access_token);
-                Request.isRefreshing = false;
-                Request.responsPendingList.forEach(fn => fn());
-                Request.responsPendingList = [];
-                Request.requestPendingList.forEach(fn => fn());
-                Request.requestPendingList = [];
-                const curRes = await instance(error.response.config);
-                resolve(curRes);
-              } else {
-                reject(error);
-              }
-            }
-          } catch (error) {
-            const e = error as AxiosError;
-            if (e.response?.status === 401) {
-              message.error("登录过期！", 1);
-              setTimeout(() => {
-                // token刷新失败，跳转登录页面
-                clearToken();
-                window.location.href = "/login";
-              }, 1000);
-            } else {
-              reject(error);
-            }
-          }
+instance.interceptors.response.use(response => {
+  return new Promise(async (resolve, reject) => {
+    const backLogin = () => {
+      message.error("登录过期！", 1);
+      setTimeout(() => {
+        // token刷新失败，跳转登录页面
+        clearToken();
+        window.location.href = "/login";
+      }, 1000);
+    };
+    const code = response.data.code;
+    if (code === 401) {
+      try {
+        if (Request.isRefreshing) {
+          Request.responsPendingList.push(async () => {
+            const res = await instance(response.config);
+            resolve(res);
+          });
         } else {
-          reject(error);
+          Request.isRefreshing = true;
+          // 刷新token
+          const res = await axios<PostAuthRefreshTokenRes>({
+            url: `/auth/refresh-token`,
+            method: "post",
+            data: { refresh_token: getRefreshToken() },
+          });
+          if (res.status === 200 && res.data.data?.access_token) {
+            setToken(res.data.data?.access_token);
+            Request.isRefreshing = false;
+            Request.responsPendingList.forEach(fn => fn());
+            Request.responsPendingList = [];
+            Request.requestPendingList.forEach(fn => fn());
+            Request.requestPendingList = [];
+            const curRes = await instance(response.config);
+            resolve(curRes);
+          } else {
+            backLogin();
+          }
         }
-      } else {
-        reject(error);
+      } catch (error) {
+        backLogin();
       }
-    });
-  },
-);
+    } else {
+      resolve(response);
+    }
+  });
+});
 
 export default instance;

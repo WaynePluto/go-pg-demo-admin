@@ -1,8 +1,3 @@
-import type {
-  TemplateDetailResponse,
-  CreateTemplateRequest,
-  UpdateTemplateRequest,
-} from "@/hono-api-type/modules/template/model";
 import type { GetTemplateByIdRes, PostTemplateBody, PutTemplateByIdBody } from "@/apis/templateApi";
 import type { ModalFormProps } from "@ant-design/pro-components";
 import { ProForm, ProFormText } from "@ant-design/pro-components";
