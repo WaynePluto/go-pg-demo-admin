@@ -1,0 +1,6 @@
+node_modules
+coverage
+pnpm-lock.yaml
+auto-imports.d.ts
+dist
+promot.md
