@@ -4,7 +4,7 @@ export async function getLoginBrower(headless = true) {
   const browser = await puppeteer.launch({
     executablePath: process.env.ChromePath,
     headless,
-    args: ["--window-size=1366,768"],
+    args: ["--window-size=1920,1080"],
   });
   const page = await browser.newPage();
   // 打开登录页面

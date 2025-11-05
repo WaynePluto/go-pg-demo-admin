@@ -6,7 +6,7 @@ describe("权限管理页面测试", () => {
   let testPage: Page;
 
   beforeAll(async () => {
-    const { browser, page } = await getLoginBrower();
+    const { browser, page } = await getLoginBrower(false);
     testBrowser = browser;
     testPage = page;
   });
@@ -34,18 +34,16 @@ describe("权限管理页面测试", () => {
     const addNameInput = await testPage.$('input[id="permission-form-name"]');
     await addNameInput?.type(permissionName);
 
+    // 选择权限类型为菜单
+    await testPage.click("label.permission-form-type-radio-menu");
+
     // 输入权限编码
     const permissionCode = "PERMISSION_TEST_" + Math.floor(Math.random() * 10000);
     const addCodeInput = await testPage.$('input[id="permission-form-code"]');
     await addCodeInput?.type(permissionCode);
 
-    // 输入权限所属
-    const permissionResource = "测试资源";
-    const addResourceInput = await testPage.$('input[id="permission-form-resource"]');
-    await addResourceInput?.type(permissionResource);
-
     // 点击确认按钮
-    const addSubmitButton = await testPage.$('button[id="permission-form-submit"');
+    const addSubmitButton = await testPage.$('button[id="permission-form-submit"]');
     await addSubmitButton?.click();
     // 验证添加成功提示语
     const addMsg = await testPage.locator(".ant-message-custom-content.ant-message-success").wait();
@@ -73,7 +71,7 @@ describe("权限管理页面测试", () => {
     await editNameInput?.type(editPermissionName);
 
     // 点击确认按钮
-    const editSubmitButton = await testPage.$('button[id="permission-form-submit"');
+    const editSubmitButton = await testPage.$('button[id="permission-form-submit"]');
     await editSubmitButton?.click();
     // 验证编辑成功提示语
     const editMsg = await testPage.locator(".ant-message-custom-content.ant-message-success").wait();

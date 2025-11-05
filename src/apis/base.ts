@@ -61,7 +61,7 @@ instance.interceptors.response.use(response => {
           Request.isRefreshing = true;
           // 刷新token
           const res = await axios<PostAuthRefreshTokenRes>({
-            url: `/auth/refresh-token`,
+            url: `/api/v1/auth/refresh-token`,
             method: "post",
             data: { refresh_token: getRefreshToken() },
           });

@@ -44,8 +44,9 @@ export function PermissionTable() {
       dataIndex: "type",
       key: "type",
       valueEnum: {
-        system: { text: "系统内置", status: "Success" },
-        custom: { text: "自定义", status: "Default" },
+        api: { text: "接口", status: "Default" },
+        menu: { text: "菜单", status: "Default" },
+        button: { text: "按钮", status: "Default" },
       },
     },
     {
@@ -135,27 +136,54 @@ export function PermissionTable() {
   const handleFormFinish = async (values: any) => {
     let success = false;
     if (editingPermission) {
-      // 比较原始数据和表单数据，找出变更字段
+      // 构建基于 type 的完整 metadata，确保在类型切换时能显式清除不相关字段
+      const newType = values.type !== undefined ? values.type : editingPermission.type;
+
+      const buildMetadataForType = (type: string, vals: any) => {
+        if (type === "api") {
+          return {
+            code: null,
+            path: vals.path !== undefined ? vals.path : editingPermission.metadata?.path,
+            method: vals.method !== undefined ? vals.method : editingPermission.metadata?.method,
+          };
+        }
+        if (type === "menu" || type === "button") {
+          return {
+            code: vals.code !== undefined ? vals.code : editingPermission.metadata?.code,
+            path: null,
+            method: null,
+          };
+        }
+        // 其他类型保持原样
+        return {
+          code: vals.code !== undefined ? vals.code : editingPermission.metadata?.code,
+          path: vals.path !== undefined ? vals.path : editingPermission.metadata?.path,
+          method: vals.method !== undefined ? vals.method : editingPermission.metadata?.method,
+        };
+      };
+
+      const desiredMetadata = buildMetadataForType(newType, values);
+
+      // 比较其他可变字段
       const changedValues: Record<string, any> = {};
       let hasChanges = false;
 
-      // 特殊处理metadata字段
-      if (values.code !== undefined || values.path !== undefined || values.method !== undefined) {
-        changedValues.metadata = {
-          ...(values.code !== undefined && { code: values.code }),
-          ...(values.path !== undefined && { path: values.path }),
-          ...(values.method !== undefined && { method: values.method }),
-        };
-        hasChanges = true;
-      }
-
-      // 处理其他字段
-      ['name', 'type'].forEach(key => {
-        if (values[key] !== undefined && JSON.stringify(values[key]) !== JSON.stringify((editingPermission as any)[key])) {
+      ["name", "type"].forEach(key => {
+        if (
+          values[key] !== undefined &&
+          JSON.stringify(values[key]) !== JSON.stringify((editingPermission as any)[key])
+        ) {
           changedValues[key] = values[key];
           hasChanges = true;
         }
       });
+
+      // 比较 metadata
+      const oldMeta = editingPermission.metadata || {};
+      if (JSON.stringify(oldMeta) !== JSON.stringify(desiredMetadata)) {
+        changedValues.metadata = desiredMetadata;
+        hasChanges = true;
+      }
 
       if (!hasChanges) {
         message.info("未检测到任何更改");
