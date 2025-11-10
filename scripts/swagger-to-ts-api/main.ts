@@ -7,6 +7,7 @@ import { writeToFile } from "./utils";
 import path from "path";
 
 async function main() {
+  // 优先从环境变量中获取
   const {
     dir_path = "../dist/",
     file_import_code = `import axios from 'axios'\n`,
